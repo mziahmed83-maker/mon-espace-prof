@@ -2,6 +2,10 @@
 
 Prototype d'application web pour professeur : classes, élèves, notes, devoirs et bibliothèque pédagogique.
 
+## Statut
+
+Projet Next.js relié à GitHub et prêt pour déploiement Vercel.
+
 ## Lancer localement
 
 1. Installer Node.js 20+.
@@ -21,7 +25,7 @@ La V1 fonctionne en **mode démo local** : les données saisies sont conservées
 
 ## Déploiement Vercel
 
-Importer le dépôt GitHub dans Vercel et ajouter les mêmes variables d'environnement. Ensuite, déployer.
+Le dépôt est connecté à Vercel. Tout nouveau commit sur `main` doit déclencher un déploiement automatique.
 
 ## Sécurité
 
