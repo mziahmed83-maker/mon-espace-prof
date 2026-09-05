@@ -10,4 +10,5 @@ export type DocumentPedago = {
   source?: 'pc' | 'drive' | 'lien'
   fichierNom?: string
   lien?: string
+  storagePath?: string
 }
