@@ -16,11 +16,13 @@ import {
   Library,
   Link as LinkIcon,
   LogOut,
+  Pencil,
   Plus,
   Save,
   Search,
   Settings,
   Sun,
+  Trash2,
   Upload,
   Users,
 } from 'lucide-react'
@@ -30,23 +32,11 @@ import { supabase } from '@/lib/supabase/client'
 
 type Tab = 'dashboard'|'classes'|'eleves'|'notes'|'devoirs'|'documents'|'bibliotheque'|'calendrier'|'statistiques'|'parametres'
 
-const initialClasses: Classe[] = [
-  {id:'c1',nom:'TC 1',niveau:'Tronc commun'},
-  {id:'c2',nom:'3e A',niveau:'3e collège'},
-]
-const initialEleves: Eleve[] = [
-  {id:'e1',nom:'Amrani',prenom:'Sara',classeId:'c1'},
-  {id:'e2',nom:'Bennani',prenom:'Yassine',classeId:'c1'},
-  {id:'e3',nom:'El Fassi',prenom:'Lina',classeId:'c2'},
-]
-const initialNotes: Note[] = [
-  {id:'n1',eleveId:'e1',libelle:'Contrôle 1',valeur:15,sur:20,coefficient:1},
-  {id:'n2',eleveId:'e2',libelle:'Contrôle 1',valeur:12.5,sur:20,coefficient:1},
-  {id:'n3',eleveId:'e3',libelle:'Contrôle 1',valeur:17,sur:20,coefficient:1},
-]
+const initialClasses: Classe[] = [{id:'c1',nom:'TC 1',niveau:'Tronc commun'}]
+const initialEleves: Eleve[] = []
+const initialNotes: Note[] = []
 const initialDevoirs: Devoir[] = [
   {id:'d1',titre:'Lire Aux champs + questions',classeId:'c1',date:'2026-09-10',statut:'À faire'},
-  {id:'d2',titre:'Figures de style — exercices',classeId:'c2',date:'2026-09-08',statut:'À faire'},
 ]
 const initialDocs: DocumentPedago[] = [
   {id:'doc1',titre:'Fiche — Aux champs',categorie:'Œuvre',niveau:'Tronc commun',source:'lien'},
@@ -79,23 +69,25 @@ export default function App(){
     return ()=>subscription.unsubscribe()
   },[])
 
+  useEffect(()=>{
+    try{
+      if(localStorage.getItem('ep-exemples-nettoyes-v1')) return
+      const sampleStudentIds=new Set(['e1','e2','e3'])
+      setClasses(prev=>prev.filter(c=>!(c.id==='c2'||c.nom.trim().toLowerCase()==='3e a')))
+      setEleves(prev=>prev.filter(e=>!sampleStudentIds.has(e.id)&&!['sara amrani','yassine bennani','lina el fassi'].includes(`${e.prenom} ${e.nom}`.trim().toLowerCase())))
+      setNotes(prev=>prev.filter(n=>!sampleStudentIds.has(n.eleveId)))
+      setDevoirs(prev=>prev.filter(d=>d.classeId!=='c2'))
+      localStorage.setItem('ep-exemples-nettoyes-v1','1')
+    }catch{}
+  },[setClasses,setEleves,setNotes,setDevoirs])
+
   const moyenne=useMemo(()=>notes.length?notes.reduce((s,n)=>s+(n.valeur/n.sur*20),0)/notes.length:0,[notes])
   const classeNom=(id:string)=>classes.find(c=>c.id===id)?.nom??'—'
   const eleveNom=(id:string)=>{const e=eleves.find(x=>x.id===id);return e?`${e.prenom} ${e.nom}`:'—'}
 
   const nav=[
-    ['dashboard','Accueil',Home],
-    ['classes','Classes',GraduationCap],
-    ['eleves','Élèves',Users],
-    ['notes','Notes',ClipboardList],
-    ['devoirs','Devoirs',BookOpen],
-    ['documents','Mes documents',FolderOpen],
-    ['bibliotheque','Bibliothèque',Library],
-    ['calendrier','Mon calendrier',CalendarDays],
-    ['statistiques','Statistiques',BarChart3],
-    ['parametres','Paramètres',Settings],
+    ['dashboard','Accueil',Home],['classes','Classes',GraduationCap],['eleves','Élèves',Users],['notes','Notes',ClipboardList],['devoirs','Devoirs',BookOpen],['documents','Mes documents',FolderOpen],['bibliotheque','Bibliothèque',Library],['calendrier','Mon calendrier',CalendarDays],['statistiques','Statistiques',BarChart3],['parametres','Paramètres',Settings],
   ] as const
-
   const pageTitle=nav.find(x=>x[0]===tab)?.[1]??'Accueil'
 
   async function sendMagicLink(){
@@ -109,10 +101,46 @@ export default function App(){
     if(d.storagePath){
       const {data,error}=await supabase.storage.from('documents-pedago').createSignedUrl(d.storagePath,3600)
       if(error){alert('Impossible d’ouvrir ce fichier : '+error.message);return}
-      window.open(data.signedUrl,'_blank','noopener,noreferrer')
-      return
+      window.open(data.signedUrl,'_blank','noopener,noreferrer');return
     }
     if(d.lien) window.open(d.lien,'_blank','noopener,noreferrer')
+  }
+
+  function editClasse(c:Classe){
+    const nom=window.prompt('Nom de la classe :',c.nom)
+    if(nom===null||!nom.trim()) return
+    const niveau=window.prompt('Niveau :',c.niveau)
+    if(niveau===null||!niveau.trim()) return
+    setClasses(classes.map(x=>x.id===c.id?{...x,nom:nom.trim(),niveau:niveau.trim()}:x))
+  }
+
+  function deleteClasse(c:Classe){
+    const linked=eleves.filter(e=>e.classeId===c.id)
+    const message=linked.length?`Supprimer « ${c.nom} » ? Les ${linked.length} élève(s) rattaché(s) à cette classe et leurs notes seront aussi supprimés.`:`Supprimer la classe « ${c.nom} » ?`
+    if(!window.confirm(message)) return
+    const studentIds=new Set(linked.map(e=>e.id))
+    setClasses(classes.filter(x=>x.id!==c.id))
+    setEleves(eleves.filter(e=>e.classeId!==c.id))
+    setNotes(notes.filter(n=>!studentIds.has(n.eleveId)))
+    setDevoirs(devoirs.filter(d=>d.classeId!==c.id))
+  }
+
+  function editEleve(e:Eleve){
+    const nom=window.prompt('Nom :',e.nom)
+    if(nom===null||!nom.trim()) return
+    const prenom=window.prompt('Prénom :',e.prenom)
+    if(prenom===null||!prenom.trim()) return
+    const choices=classes.map(c=>`${c.nom} (${c.niveau})`).join('\n')
+    const classe=window.prompt(`Classe actuelle : ${classeNom(e.classeId)}\n\nEntrez le nom exact de la nouvelle classe, ou laissez le nom actuel.\nClasses disponibles :\n${choices}`,classeNom(e.classeId))
+    if(classe===null) return
+    const selected=classes.find(c=>c.nom.trim().toLowerCase()===classe.trim().toLowerCase())
+    setEleves(eleves.map(x=>x.id===e.id?{...x,nom:nom.trim(),prenom:prenom.trim(),classeId:selected?.id??e.classeId}:x))
+  }
+
+  function deleteEleve(e:Eleve){
+    if(!window.confirm(`Supprimer ${e.prenom} ${e.nom} de la liste des élèves ?`)) return
+    setEleves(eleves.filter(x=>x.id!==e.id))
+    setNotes(notes.filter(n=>n.eleveId!==e.id))
   }
 
   async function saveItem(data:any){
@@ -130,8 +158,7 @@ export default function App(){
         const path=`${user.id}/${crypto.randomUUID()}-${safeName}`
         const {error}=await supabase.storage.from('documents-pedago').upload(path,file,{contentType:file.type||undefined,upsert:false})
         if(error) throw error
-        const clean={...data}
-        delete clean.fichier
+        const clean={...data};delete clean.fichier
         setDocs([...docs,{id,...clean,fichierNom:file.name,storagePath:path}])
       }else{
         if(!data.lien?.trim()) throw new Error('Ajoutez le lien du document.')
@@ -151,42 +178,21 @@ export default function App(){
     </header>
 
     <div className="shell">
-      <aside className="sidebar">
-        <div className="nav">{nav.map(([k,label,Icon])=><button key={k} onClick={()=>setTab(k)} className={tab===k?'active':''}><Icon size={19}/>{label}</button>)}</div>
-        <div className="sidebar-quote"><span>Enseigner,<br/>c’est croire<br/>en demain !</span><div className="book-stack">📚</div></div>
-      </aside>
-
+      <aside className="sidebar"><div className="nav">{nav.map(([k,label,Icon])=><button key={k} onClick={()=>setTab(k)} className={tab===k?'active':''}><Icon size={19}/>{label}</button>)}</div><div className="sidebar-quote"><span>Enseigner,<br/>c’est croire<br/>en demain !</span><div className="book-stack">📚</div></div></aside>
       <main className="main">
         {tab==='dashboard' ? <>
           <section className="welcome-row"><div><div className="welcome-title"><Sun size={38}/><div><h1>Bienvenue, M. Ahmed !</h1><p>Votre espace de travail enseignant, simple et centralisé.</p></div></div></div><blockquote>« Transmettre, c’est semer des possibles. »</blockquote></section>
-
-          <div className="cards">
-            <Stat label="Classes" value={classes.length} icon={<GraduationCap size={30}/>} onClick={()=>setTab('classes')}/>
-            <Stat label="Élèves" value={eleves.length} icon={<Users size={30}/>} onClick={()=>setTab('eleves')}/>
-            <Stat label="Devoirs à faire" value={devoirs.filter(d=>d.statut==='À faire').length} icon={<FileText size={30}/>} onClick={()=>setTab('devoirs')}/>
-            <Stat label="Moyenne générale" value={moyenne.toFixed(1)} icon={<BarChart3 size={30}/>} onClick={()=>setTab('notes')}/>
-          </div>
-
-          <div className="grid2 dashboard-grid">
-            <section className="panel modern-panel"><div className="panel-heading"><h2><FileText size={20}/> Derniers devoirs</h2><button className="text-link" onClick={()=>setTab('devoirs')}>Voir tout</button></div><div className="list">{devoirs.slice(0,5).map((d,i)=><div className="item rich-item" key={d.id}><div className={`item-icon icon-${i%3}`}><FileText size={20}/></div><div className="item-body"><strong>{d.titre}</strong><span>{classeNom(d.classeId)} · {d.date}</span></div><span className={d.statut==='À faire'?'status-chip todo':'status-chip done'}>{d.statut==='À faire'?'À corriger':'Corrigé'}</span><ChevronRight size={20}/></div>)}</div></section>
-            <section className="panel modern-panel"><div className="panel-heading"><h2><Library size={20}/> Bibliothèque</h2><button className="text-link" onClick={()=>setTab('bibliotheque')}>Voir tout</button></div><div className="list">{filteredDocs.slice(0,5).map((d,i)=><button className="item rich-item library-row" key={d.id} onClick={()=>openDocument(d)}><div className={`item-icon lib-${i%3}`}><BookOpen size={20}/></div><div className="item-body"><strong>{d.titre}</strong><span>{d.categorie} · {d.niveau}</span></div><ChevronRight size={20}/></button>)}</div></section>
-          </div>
-
+          <div className="cards"><Stat label="Classes" value={classes.length} icon={<GraduationCap size={30}/>} onClick={()=>setTab('classes')}/><Stat label="Élèves" value={eleves.length} icon={<Users size={30}/>} onClick={()=>setTab('eleves')}/><Stat label="Devoirs à faire" value={devoirs.filter(d=>d.statut==='À faire').length} icon={<FileText size={30}/>} onClick={()=>setTab('devoirs')}/><Stat label="Moyenne générale" value={moyenne.toFixed(1)} icon={<BarChart3 size={30}/>} onClick={()=>setTab('notes')}/></div>
+          <div className="grid2 dashboard-grid"><section className="panel modern-panel"><div className="panel-heading"><h2><FileText size={20}/> Derniers devoirs</h2><button className="text-link" onClick={()=>setTab('devoirs')}>Voir tout</button></div><div className="list">{devoirs.slice(0,5).map((d,i)=><div className="item rich-item" key={d.id}><div className={`item-icon icon-${i%3}`}><FileText size={20}/></div><div className="item-body"><strong>{d.titre}</strong><span>{classeNom(d.classeId)} · {d.date}</span></div><span className={d.statut==='À faire'?'status-chip todo':'status-chip done'}>{d.statut==='À faire'?'À corriger':'Corrigé'}</span><ChevronRight size={20}/></div>)}</div></section><section className="panel modern-panel"><div className="panel-heading"><h2><Library size={20}/> Bibliothèque</h2><button className="text-link" onClick={()=>setTab('bibliotheque')}>Voir tout</button></div><div className="list">{filteredDocs.slice(0,5).map((d,i)=><button className="item rich-item library-row" key={d.id} onClick={()=>openDocument(d)}><div className={`item-icon lib-${i%3}`}><BookOpen size={20}/></div><div className="item-body"><strong>{d.titre}</strong><span>{d.categorie} · {d.niveau}</span></div><ChevronRight size={20}/></button>)}</div></section></div>
           <section className="quote-banner"><div className="quote-mark">“</div><div className="quote-copy">« Un bon enseignant éclaire les chemins et fait grandir les possibles. »</div><div className="leaf-mark">🌿 <span>Apprendre<br/>Partager<br/>Réussir</span></div></section>
         </> : <>
           <div className="top"><div><h1>{pageTitle}</h1><p>Votre espace de travail enseignant, simple et centralisé.</p></div>{user?<button className="btn secondary" onClick={()=>supabase.auth.signOut()}><LogOut size={15}/> Se déconnecter</button>:<span className="pill">Connexion requise pour les fichiers</span>}</div>
 
-          {tab==='classes'&&<Section title="Mes classes" onAdd={()=>setModal('classe')}><table className="table"><thead><tr><th>Classe</th><th>Niveau</th><th>Élèves</th></tr></thead><tbody>{classes.map(c=><tr key={c.id}><td><b>{c.nom}</b></td><td>{c.niveau}</td><td>{eleves.filter(e=>e.classeId===c.id).length}</td></tr>)}</tbody></table></Section>}
-          {tab==='eleves'&&<Section title="Liste des élèves" onAdd={()=>setModal('eleve')}><table className="table"><thead><tr><th>Nom</th><th>Prénom</th><th>Classe</th></tr></thead><tbody>{eleves.map(e=><tr key={e.id}><td>{e.nom}</td><td>{e.prenom}</td><td>{classeNom(e.classeId)}</td></tr>)}</tbody></table></Section>}
+          {tab==='classes'&&<Section title="Mes classes" onAdd={()=>setModal('classe')}><table className="table"><thead><tr><th>Classe</th><th>Niveau</th><th>Élèves</th><th>Actions</th></tr></thead><tbody>{classes.map(c=><tr key={c.id}><td><b>{c.nom}</b></td><td>{c.niveau}</td><td>{eleves.filter(e=>e.classeId===c.id).length}</td><td><div className="row-actions"><button className="action-btn edit" onClick={()=>editClasse(c)} title="Modifier"><Pencil size={15}/> Modifier</button><button className="action-btn delete" onClick={()=>deleteClasse(c)} title="Supprimer"><Trash2 size={15}/> Supprimer</button></div></td></tr>)}</tbody></table></Section>}
+          {tab==='eleves'&&<Section title="Liste des élèves" onAdd={()=>setModal('eleve')}><table className="table"><thead><tr><th>Nom</th><th>Prénom</th><th>Classe</th><th>Actions</th></tr></thead><tbody>{eleves.length?eleves.map(e=><tr key={e.id}><td>{e.nom}</td><td>{e.prenom}</td><td>{classeNom(e.classeId)}</td><td><div className="row-actions"><button className="action-btn edit" onClick={()=>editEleve(e)}><Pencil size={15}/> Modifier</button><button className="action-btn delete" onClick={()=>deleteEleve(e)}><Trash2 size={15}/> Supprimer</button></div></td></tr>):<tr><td colSpan={4} className="empty">Aucun élève. Cliquez sur « Ajouter » pour créer votre vraie liste.</td></tr>}</tbody></table></Section>}
           {tab==='notes'&&<Section title="Notes" onAdd={()=>setModal('note')}><table className="table"><thead><tr><th>Élève</th><th>Évaluation</th><th>Note</th><th>Coef.</th></tr></thead><tbody>{notes.map(n=><tr key={n.id}><td>{eleveNom(n.eleveId)}</td><td>{n.libelle}</td><td><b>{n.valeur}/{n.sur}</b></td><td>{n.coefficient}</td></tr>)}</tbody></table></Section>}
           {tab==='devoirs'&&<Section title="Devoirs et exercices" onAdd={()=>setModal('devoir')}><table className="table"><thead><tr><th>Titre</th><th>Classe</th><th>Date</th><th>Statut</th></tr></thead><tbody>{devoirs.map(d=><tr key={d.id}><td>{d.titre}</td><td>{classeNom(d.classeId)}</td><td>{d.date}</td><td><span className={d.statut==='À faire'?'badge warn':'badge'}>{d.statut}</span></td></tr>)}</tbody></table></Section>}
-
-          {tab==='documents'&&<section className="panel">
-            {!user&&<div className="auth-box"><strong>Connexion sécurisée</strong><p>Pour téléverser des fichiers privés, recevez un lien de connexion par e-mail.</p><div className="auth-row"><input className="input" type="email" value={email} placeholder="votre@email.com" onChange={e=>setEmail(e.target.value)}/><button className="btn" onClick={sendMagicLink}>Recevoir le lien</button></div>{authMessage&&<div className="auth-message">{authMessage}</div>}</div>}
-            <div className="toolbar"><button className="btn" onClick={()=>setModal('document')}><Upload size={16}/> Téléverser un document</button></div><h2>Mes documents</h2><p className="helper">Les fichiers du PC sont stockés dans votre espace Supabase privé. Les liens Google Drive restent accessibles depuis leur emplacement d’origine.</p>
-            <div className="table-wrap"><table className="table"><thead><tr><th>Document</th><th>Catégorie</th><th>Niveau</th><th>Source</th><th>Accès</th></tr></thead><tbody>{filteredDocs.map(d=><tr key={d.id}><td><b>{d.titre}</b>{d.fichierNom&&<div className="sub">{d.fichierNom}</div>}</td><td>{d.categorie}</td><td>{d.niveau}</td><td>{d.source==='drive'?'Google Drive':d.source==='pc'?'Supabase':'Lien'}</td><td>{d.storagePath||d.lien?<button className="doc-link doc-button" onClick={()=>openDocument(d)}>{d.source==='drive'?<><ExternalLink size={14}/> Ouvrir dans Google Drive</>:<><LinkIcon size={14}/> Ouvrir le document</>}</button>:<span className="muted">Aucun fichier</span>}</td></tr>)}</tbody></table></div>
-          </section>}
-
+          {tab==='documents'&&<section className="panel">{!user&&<div className="auth-box"><strong>Connexion sécurisée</strong><p>Pour téléverser des fichiers privés, recevez un lien de connexion par e-mail.</p><div className="auth-row"><input className="input" type="email" value={email} placeholder="votre@email.com" onChange={e=>setEmail(e.target.value)}/><button className="btn" onClick={sendMagicLink}>Recevoir le lien</button></div>{authMessage&&<div className="auth-message">{authMessage}</div>}</div>}<div className="toolbar"><button className="btn" onClick={()=>setModal('document')}><Upload size={16}/> Téléverser un document</button></div><h2>Mes documents</h2><p className="helper">Les fichiers du PC sont stockés dans votre espace Supabase privé. Les liens Google Drive restent accessibles depuis leur emplacement d’origine.</p><div className="table-wrap"><table className="table"><thead><tr><th>Document</th><th>Catégorie</th><th>Niveau</th><th>Source</th><th>Accès</th></tr></thead><tbody>{filteredDocs.map(d=><tr key={d.id}><td><b>{d.titre}</b>{d.fichierNom&&<div className="sub">{d.fichierNom}</div>}</td><td>{d.categorie}</td><td>{d.niveau}</td><td>{d.source==='drive'?'Google Drive':d.source==='pc'?'Supabase':'Lien'}</td><td>{d.storagePath||d.lien?<button className="doc-link doc-button" onClick={()=>openDocument(d)}>{d.source==='drive'?<><ExternalLink size={14}/> Ouvrir dans Google Drive</>:<><LinkIcon size={14}/> Ouvrir le document</>}</button>:<span className="muted">Aucun fichier</span>}</td></tr>)}</tbody></table></div></section>}
           {tab==='bibliotheque'&&<section className="panel"><div className="panel-heading"><h2>Bibliothèque</h2><button className="btn" onClick={()=>setModal('document')}><Plus size={16}/> Ajouter</button></div><div className="library-grid">{filteredDocs.map((d,i)=><button key={d.id} className="library-card" onClick={()=>openDocument(d)}><div className={`item-icon lib-${i%3}`}><BookOpen size={22}/></div><strong>{d.titre}</strong><span>{d.categorie} · {d.niveau}</span></button>)}</div></section>}
           {tab==='calendrier'&&<ComingSoon icon={<CalendarDays size={34}/>} title="Mon calendrier" text="Cette rubrique accueillera vos séances, réunions et échéances."/>}
           {tab==='statistiques'&&<ComingSoon icon={<BarChart3 size={34}/>} title="Statistiques" text="Cette rubrique affichera les moyennes, résultats et progressions."/>}
@@ -194,7 +200,6 @@ export default function App(){
         </>}
       </main>
     </div>
-
     {modal&&<Editor type={modal} classes={classes} eleves={eleves} onClose={()=>setModal(null)} onSave={saveItem}/>} 
   </div>
 }
