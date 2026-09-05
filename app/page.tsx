@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, ClipboardList, FileText, GraduationCap, Home, Plus, Save, Users } from 'lucide-react'
+import { BookOpen, ClipboardList, FileText, GraduationCap, Home, Link as LinkIcon, Plus, Save, Upload, Users } from 'lucide-react'
 import type { Classe, Devoir, DocumentPedago, Eleve, Note } from '@/lib/types'
 
 type Tab = 'dashboard'|'classes'|'eleves'|'notes'|'devoirs'|'documents'
@@ -25,8 +25,8 @@ const initialDevoirs: Devoir[] = [
   {id:'d2',titre:'Figures de style — exercices',classeId:'c2',date:'2026-09-08',statut:'À faire'},
 ]
 const initialDocs: DocumentPedago[] = [
-  {id:'doc1',titre:'Fiche — Aux champs',categorie:'Œuvre',niveau:'Tronc commun'},
-  {id:'doc2',titre:'Exercices — Figures de style',categorie:'Langue',niveau:'Collège'},
+  {id:'doc1',titre:'Fiche — Aux champs',categorie:'Œuvre',niveau:'Tronc commun',source:'lien'},
+  {id:'doc2',titre:'Exercices — Figures de style',categorie:'Langue',niveau:'Collège',source:'lien'},
 ]
 
 function useStored<T>(key:string, fallback:T){
@@ -51,7 +51,7 @@ export default function App(){
 
   const nav=[
     ['dashboard','Accueil',Home],['classes','Classes',GraduationCap],['eleves','Élèves',Users],
-    ['notes','Notes',ClipboardList],['devoirs','Devoirs',BookOpen],['documents','Documents',FileText]
+    ['notes','Notes',ClipboardList],['devoirs','Devoirs',BookOpen],['documents','Mes documents',FileText]
   ] as const
 
   return <div className="shell">
@@ -71,7 +71,12 @@ export default function App(){
       {tab==='eleves' && <Section title="Liste des élèves" onAdd={()=>setModal('eleve')}><table className="table"><thead><tr><th>Nom</th><th>Prénom</th><th>Classe</th></tr></thead><tbody>{eleves.map(e=><tr key={e.id}><td>{e.nom}</td><td>{e.prenom}</td><td>{classeNom(e.classeId)}</td></tr>)}</tbody></table></Section>}
       {tab==='notes' && <Section title="Notes" onAdd={()=>setModal('note')}><table className="table"><thead><tr><th>Élève</th><th>Évaluation</th><th>Note</th><th>Coef.</th></tr></thead><tbody>{notes.map(n=><tr key={n.id}><td>{eleveNom(n.eleveId)}</td><td>{n.libelle}</td><td><b>{n.valeur}/{n.sur}</b></td><td>{n.coefficient}</td></tr>)}</tbody></table></Section>}
       {tab==='devoirs' && <Section title="Devoirs et exercices" onAdd={()=>setModal('devoir')}><table className="table"><thead><tr><th>Titre</th><th>Classe</th><th>Date</th><th>Statut</th></tr></thead><tbody>{devoirs.map(d=><tr key={d.id}><td>{d.titre}</td><td>{classeNom(d.classeId)}</td><td>{d.date}</td><td><span className={d.statut==='À faire'?'badge warn':'badge'}>{d.statut}</span></td></tr>)}</tbody></table></Section>}
-      {tab==='documents' && <Section title="Base documentaire" onAdd={()=>setModal('document')}><table className="table"><thead><tr><th>Document</th><th>Catégorie</th><th>Niveau</th></tr></thead><tbody>{docs.map(d=><tr key={d.id}><td><b>{d.titre}</b></td><td>{d.categorie}</td><td>{d.niveau}</td></tr>)}</tbody></table></Section>}
+      {tab==='documents' && <section className="panel">
+        <div className="toolbar"><button className="btn" onClick={()=>setModal('document')}><Plus size={16}/> Ajouter un document</button></div>
+        <h2>Mes documents</h2>
+        <p className="helper">Ajoutez un cours depuis votre PC ou enregistrez un lien Google Drive. Le stockage cloud des fichiers PC sera connecté à Supabase à l’étape suivante.</p>
+        <div className="table-wrap"><table className="table"><thead><tr><th>Document</th><th>Catégorie</th><th>Niveau</th><th>Source</th><th>Accès</th></tr></thead><tbody>{docs.map(d=><tr key={d.id}><td><b>{d.titre}</b>{d.fichierNom&&<div className="sub">{d.fichierNom}</div>}</td><td>{d.categorie}</td><td>{d.niveau}</td><td>{d.source==='drive'?'Google Drive':d.source==='pc'?'PC':'Lien'}</td><td>{d.lien?<a className="doc-link" href={d.lien} target="_blank" rel="noreferrer"><LinkIcon size={14}/> Ouvrir</a>:<span className="muted">À téléverser</span>}</td></tr>)}</tbody></table></div>
+      </section>}
     </main>
     {modal && <Editor type={modal} classes={classes} eleves={eleves} onClose={()=>setModal(null)} onSave={(data:any)=>{
       const id=crypto.randomUUID();
@@ -89,7 +94,7 @@ function Stat({label,value}:{label:string,value:string|number}){return <div clas
 function Section({title,onAdd,children}:{title:string,onAdd:()=>void,children:React.ReactNode}){return <section className="panel"><div className="toolbar"><button className="btn" onClick={onAdd}><Plus size={16}/> Ajouter</button></div><h2>{title}</h2><div className="table-wrap">{children}</div></section>}
 
 function Editor({type,classes,eleves,onClose,onSave}:{type:'classe'|'eleve'|'note'|'devoir'|'document';classes:Classe[];eleves:Eleve[];onClose:()=>void;onSave:(d:any)=>void}){
-  const [form,setForm]=useState<any>(()=> type==='note'?{eleveId:eleves[0]?.id??'',libelle:'Contrôle',valeur:10,sur:20,coefficient:1}:type==='eleve'?{nom:'',prenom:'',classeId:classes[0]?.id??''}:type==='classe'?{nom:'',niveau:'Tronc commun'}:type==='devoir'?{titre:'',classeId:classes[0]?.id??'',date:new Date().toISOString().slice(0,10),statut:'À faire'}:{titre:'',categorie:'Cours',niveau:'Tronc commun'})
+  const [form,setForm]=useState<any>(()=> type==='note'?{eleveId:eleves[0]?.id??'',libelle:'Contrôle',valeur:10,sur:20,coefficient:1}:type==='eleve'?{nom:'',prenom:'',classeId:classes[0]?.id??''}:type==='classe'?{nom:'',niveau:'Tronc commun'}:type==='devoir'?{titre:'',classeId:classes[0]?.id??'',date:new Date().toISOString().slice(0,10),statut:'À faire'}:{titre:'',categorie:'Cours',niveau:'Tronc commun',source:'pc',fichierNom:'',lien:''})
   const f=(k:string,v:any)=>setForm((p:any)=>({...p,[k]:v}))
   const title={classe:'Ajouter une classe',eleve:'Ajouter un élève',note:'Ajouter une note',devoir:'Ajouter un devoir',document:'Ajouter un document'}[type]
   return <div className="modal-backdrop"><div className="modal"><h3>{title}</h3><div className="form">
@@ -97,9 +102,18 @@ function Editor({type,classes,eleves,onClose,onSave}:{type:'classe'|'eleve'|'not
     {type==='eleve'&&<><Field label="Nom" value={form.nom} onChange={v=>f('nom',v)}/><Field label="Prénom" value={form.prenom} onChange={v=>f('prenom',v)}/><Select label="Classe" value={form.classeId} onChange={v=>f('classeId',v)} options={classes.map(c=>[c.id,c.nom])}/></>}
     {type==='note'&&<><Select label="Élève" value={form.eleveId} onChange={v=>f('eleveId',v)} options={eleves.map(e=>[e.id,`${e.prenom} ${e.nom}`])}/><Field label="Évaluation" value={form.libelle} onChange={v=>f('libelle',v)}/><Field label="Note" type="number" value={form.valeur} onChange={v=>f('valeur',v)}/><Field label="Sur" type="number" value={form.sur} onChange={v=>f('sur',v)}/><Field label="Coefficient" type="number" value={form.coefficient} onChange={v=>f('coefficient',v)}/></>}
     {type==='devoir'&&<><Field label="Titre / consigne" value={form.titre} onChange={v=>f('titre',v)}/><Select label="Classe" value={form.classeId} onChange={v=>f('classeId',v)} options={classes.map(c=>[c.id,c.nom])}/><Field label="Date" type="date" value={form.date} onChange={v=>f('date',v)}/><Select label="Statut" value={form.statut} onChange={v=>f('statut',v)} options={['À faire','Terminé'].map(x=>[x,x])}/></>}
-    {type==='document'&&<><Field label="Titre" value={form.titre} onChange={v=>f('titre',v)}/><Field label="Catégorie" value={form.categorie} onChange={v=>f('categorie',v)}/><Field label="Niveau" value={form.niveau} onChange={v=>f('niveau',v)}/></>}
+    {type==='document'&&<>
+      <Field label="Titre du document" value={form.titre} onChange={v=>f('titre',v)}/>
+      <Field label="Catégorie" value={form.categorie} onChange={v=>f('categorie',v)}/>
+      <Field label="Niveau" value={form.niveau} onChange={v=>f('niveau',v)}/>
+      <Select label="Source" value={form.source} onChange={v=>f('source',v)} options={[["pc","Depuis mon PC"],["drive","Google Drive"],["lien","Autre lien"]]}/>
+      {form.source==='pc'
+        ? <label>Choisir un fichier<input className="input" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" onChange={e=>f('fichierNom',e.target.files?.[0]?.name??'')}/>{form.fichierNom&&<span className="file-picked"><Upload size={14}/> {form.fichierNom}</span>}</label>
+        : <Field label={form.source==='drive'?'Lien Google Drive':'Lien du document'} value={form.lien} onChange={v=>f('lien',v)} placeholder="https://..."/>
+      }
+    </>}
     <div className="actions"><button className="btn secondary" onClick={onClose}>Annuler</button><button className="btn" onClick={()=>onSave(form)}><Save size={16}/> Enregistrer</button></div>
   </div></div></div>
 }
-function Field({label,value,onChange,type='text'}:{label:string;value:any;onChange:(v:string)=>void;type?:string}){return <label>{label}<input className="input" type={type} value={value} onChange={e=>onChange(e.target.value)}/></label>}
+function Field({label,value,onChange,type='text',placeholder}:{label:string;value:any;onChange:(v:string)=>void;type?:string;placeholder?:string}){return <label>{label}<input className="input" type={type} value={value} placeholder={placeholder} onChange={e=>onChange(e.target.value)}/></label>}
 function Select({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:(readonly [string,string])[]}){return <label>{label}<select className="input" value={value} onChange={e=>onChange(e.target.value)}>{options.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>}
