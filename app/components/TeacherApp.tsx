@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect,useMemo,useState,type CSSProperties,type ReactNode } from 'react'
+import { useEffect,useMemo,useRef,useState,type CSSProperties,type ReactNode } from 'react'
 import {BarChart3,Bell,BookOpen,CalendarDays,ChevronRight,ClipboardList,ExternalLink,FileText,FolderOpen,GraduationCap,Home,Library,Link as LinkIcon,LogOut,Pencil,Plus,Search,Settings,Sun,Trash2,Upload,Users} from 'lucide-react'
 import type {User} from '@supabase/supabase-js'
 import type {Classe,Devoir,DocumentPedago,Eleve,Note} from '@/lib/types'
@@ -19,6 +19,7 @@ const initialDocs:DocumentPedago[]=[{id:'doc1',titre:'Fiche — Aux champs',cate
 function useStored<T>(key:string,fallback:T){const [value,setValue]=useState<T>(fallback);useEffect(()=>{try{const raw=localStorage.getItem(key);if(raw)setValue(JSON.parse(raw))}catch{}},[key]);useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(value))}catch{}},[key,value]);return [value,setValue] as const}
 
 export default function TeacherApp(){
+ const [preview,setPreview]=useState<DocumentPedago|null>(null)
  const [tab,setTab]=useState<string>('dashboard')
  const [classes,setClasses]=useStored('ep-classes',initialClasses),[eleves,setEleves]=useStored('ep-eleves',initialEleves),[notes,setNotes]=useStored('ep-notes',initialNotes),[devoirs,setDevoirs]=useStored('ep-devoirs',initialDevoirs),[docs,setDocs]=useStored('ep-docs',initialDocs)
  const [preferences,setPreferences]=useStored<Preferences>('ep-preferences-v2',defaultPreferences),[rubriqueNoms,setRubriqueNoms]=useStored<RubriqueNoms>('ep-rubrique-noms',defaultRubriqueNoms),[customRubriques,setCustomRubriques]=useStored<CustomRubrique[]>('ep-custom-rubriques',[])
@@ -37,7 +38,7 @@ export default function TeacherApp(){
  const style={'--accent':preferences.accent} as CSSProperties
 
  async function sendMagicLink(){setAuthMessage('');if(!email.trim()){setAuthMessage('Saisissez votre adresse e-mail.');return}const {error}=await supabase.auth.signInWithOtp({email:email.trim(),options:{emailRedirectTo:window.location.origin}});setAuthMessage(error?error.message:'Lien envoyé. Ouvrez votre e-mail puis cliquez sur le lien de connexion.')}
- async function openDocument(d:DocumentPedago){if(d.storagePath){const {data,error}=await supabase.storage.from('documents-pedago').createSignedUrl(d.storagePath,3600);if(error){alert(error.message);return}window.open(data.signedUrl,'_blank','noopener,noreferrer');return}if(d.lien)window.open(d.lien,'_blank','noopener,noreferrer')}
+ function openDocument(d:DocumentPedago){if(d.storagePath){setPreview(d);return}if(d.lien){try{const url=new URL(d.lien);if(!['https:','http:'].includes(url.protocol))throw new Error();window.open(url.href,'_blank','noopener,noreferrer')}catch{alert('Ce lien est invalide. Modifiez le document pour le corriger.')}}else{alert('Ajoutez un fichier ou un lien à ce document pour l’ouvrir.')}}
  async function deleteDocument(d:DocumentPedago){if(!confirm(`Supprimer « ${d.titre} » ?`))return;if(d.storagePath){if(!user){alert('Reconnectez-vous avant de supprimer ce fichier.');return}const {error}=await supabase.storage.from('documents-pedago').remove([d.storagePath]);if(error){alert(error.message);return}}setDocs(docs.filter(x=>x.id!==d.id))}
  function editDocument(d:DocumentPedago){const titre=prompt('Titre :',d.titre);if(!titre?.trim())return;const categorie=prompt('Catégorie :',d.categorie);if(!categorie?.trim())return;const niveau=prompt('Niveau :',d.niveau);if(!niveau?.trim())return;let lien=d.lien;if(d.source!=='pc'){const n=prompt('Lien :',d.lien??'');if(n===null)return;lien=n.trim()}setDocs(docs.map(x=>x.id===d.id?{...x,titre:titre.trim(),categorie:categorie.trim(),niveau:niveau.trim(),lien}:x))}
  const actions=(edit:()=>void,del:()=>void)=><div className="row-actions"><button className="action-btn edit" onClick={edit}><Pencil size={15}/> Modifier</button><button className="action-btn delete" onClick={del}><Trash2 size={15}/> Supprimer</button></div>
@@ -61,7 +62,7 @@ export default function TeacherApp(){
    {tab==='documents'&&<section className="panel">{!user&&<div className="auth-box"><strong>Connexion sécurisée</strong><p>Pour téléverser des fichiers privés.</p><div className="auth-row"><input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="votre@email.com"/><button className="btn" onClick={sendMagicLink}>Recevoir le lien</button></div>{authMessage&&<div className="auth-message">{authMessage}</div>}</div>}<div className="toolbar"><button className="btn" onClick={()=>setModal('document')}><Upload size={16}/> Ajouter un document</button></div><DocTable docs={filteredDocs} open={openDocument} edit={editDocument} del={deleteDocument}/></section>}
    {tab==='bibliotheque'&&<section className="panel"><div className="panel-heading"><h2>{rubriqueNoms.bibliotheque}</h2><button className="btn" onClick={()=>setModal('document')}><Plus size={16}/> Ajouter</button></div><div className="library-grid">{filteredDocs.map((d,i)=><div className="library-card" key={d.id}><button className="library-open" onClick={()=>openDocument(d)}><div className={`item-icon lib-${i%3}`}><BookOpen size={22}/></div><strong>{d.titre}</strong><span>{d.categorie} · {d.niveau}</span></button>{actions(()=>editDocument(d),()=>void deleteDocument(d))}</div>)}</div></section>}
    {tab==='calendrier'&&<Coming title={rubriqueNoms.calendrier} icon={<CalendarDays size={34}/>}/>} {tab==='statistiques'&&<Coming title={rubriqueNoms.statistiques} icon={<BarChart3 size={34}/>}/>} {tab==='parametres'&&<SettingsPanel preferences={preferences} onPreferences={setPreferences} rubriqueNoms={rubriqueNoms} onRubriqueNoms={setRubriqueNoms} customRubriques={customRubriques} onCustomRubriques={setCustomRubriques}/>} {customActive&&<section className="panel"><h2>{customActive.titre}</h2><p className="helper">{customActive.sousTitre}</p><div className="empty">Rubrique personnalisée prête à être utilisée.</div></section>}
-  </>}</main></div>{modal&&<CrudModal type={modal} classes={classes} eleves={eleves} onClose={()=>setModal(null)} onSave={saveItem}/>}</div>
+  </>}</main></div>{preview&&<DocumentPreview key={preview.id} document={preview} onClose={()=>setPreview(null)}/ >}{modal&&<CrudModal type={modal} classes={classes} eleves={eleves} onClose={()=>setModal(null)} onSave={saveItem}/>}</div>
 }
 
 function Dashboard({preferences,classes,eleves,devoirs,docs,moyenne,classeNom,onTab,openDocument,labels}:{preferences:Preferences;classes:Classe[];eleves:Eleve[];devoirs:Devoir[];docs:DocumentPedago[];moyenne:number;classeNom:(id:string)=>string;onTab:(t:string)=>void;openDocument:(d:DocumentPedago)=>void;labels:RubriqueNoms}){return <><section className="welcome-row"><div className="welcome-title"><Sun size={38}/><div><h1>Bienvenue, {preferences.nom} !</h1><p>Votre espace de travail enseignant, simple et centralisé.</p></div></div><blockquote>« {preferences.citation} »</blockquote></section><div className="cards"><Stat label={labels.classes} value={classes.length} icon={<GraduationCap size={30}/>} onClick={()=>onTab('classes')}/><Stat label={labels.eleves} value={eleves.length} icon={<Users size={30}/>} onClick={()=>onTab('eleves')}/><Stat label="Devoirs à faire" value={devoirs.filter(d=>d.statut==='À faire').length} icon={<FileText size={30}/>} onClick={()=>onTab('devoirs')}/><Stat label="Moyenne générale" value={moyenne.toFixed(1)} icon={<BarChart3 size={30}/>} onClick={()=>onTab('notes')}/></div><div className="grid2 dashboard-grid"><section className="panel modern-panel"><h2>Derniers devoirs</h2><div className="list">{devoirs.slice(0,5).map(d=><div className="item rich-item" key={d.id}><FileText size={20}/><div className="item-body"><strong>{d.titre}</strong><span>{classeNom(d.classeId)} · {d.date}</span></div></div>)}</div></section><section className="panel modern-panel"><h2>{labels.bibliotheque}</h2><div className="list">{docs.slice(0,5).map(d=><button className="item rich-item library-row" key={d.id} onClick={()=>openDocument(d)}><BookOpen size={20}/><div className="item-body"><strong>{d.titre}</strong><span>{d.categorie} · {d.niveau}</span></div><ChevronRight size={20}/></button>)}</div></section></div></>}
@@ -69,3 +70,52 @@ function Stat({label,value,icon,onClick}:{label:string;value:string|number;icon:
 function Section({title,add,children}:{title:string;add:()=>void;children:ReactNode}){return <section className="panel"><div className="toolbar"><button className="btn" onClick={add}><Plus size={16}/> Ajouter</button></div><h2>{title}</h2><div className="table-wrap">{children}</div></section>}
 function Coming({title,icon}:{title:string;icon:ReactNode}){return <section className="panel coming-soon"><div className="coming-icon">{icon}</div><h2>{title}</h2><p>Cette rubrique est prête à être développée selon vos besoins.</p></section>}
 function DocTable({docs,open,edit,del}:{docs:DocumentPedago[];open:(d:DocumentPedago)=>void;edit:(d:DocumentPedago)=>void;del:(d:DocumentPedago)=>void}){return <div className="table-wrap"><table className="table"><thead><tr><th>Document</th><th>Catégorie</th><th>Niveau</th><th>Accès</th><th>Actions</th></tr></thead><tbody>{docs.map(d=><tr key={d.id}><td><b>{d.titre}</b></td><td>{d.categorie}</td><td>{d.niveau}</td><td>{d.storagePath||d.lien?<button className="doc-link doc-button" onClick={()=>open(d)}>{d.source==='drive'?<><ExternalLink size={14}/> Google Drive</>:<><LinkIcon size={14}/> Ouvrir</>}</button>:'—'}</td><td><div className="row-actions"><button className="action-btn edit" onClick={()=>edit(d)}><Pencil size={15}/> Modifier</button><button className="action-btn delete" onClick={()=>void del(d)}><Trash2 size={15}/> Supprimer</button></div></td></tr>)}</tbody></table></div>}
+
+
+function DocumentPreview({document:doc,onClose}:{document:DocumentPedago;onClose:()=>void}){
+ const dialog=useRef<HTMLDialogElement>(null)
+ const [file,setFile]=useState<{url:string;kind:string}|null>(null)
+ const [error,setError]=useState('')
+ const [renderError,setRenderError]=useState(false)
+ useEffect(()=>{
+  const element=dialog.current
+  element?.showModal()
+  return()=>element?.close()
+ },[])
+ useEffect(()=>{
+  let cancelled=false
+  let objectUrl:string|undefined
+  async function load(){
+   try{
+    const {data,error}=await supabase.storage.from('documents-pedago').download(doc.storagePath!)
+    if(error)throw error
+    if(!data)throw new Error('Fichier introuvable.')
+    if(cancelled)return
+    const extension=(doc.fichierNom||doc.storagePath||'').split('.').pop()?.toLowerCase()
+    const types:Record<string,string>={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',avif:'image/avif',bmp:'image/bmp'}
+    const mime=types[extension||'']||data.type.split(';')[0]
+    const kind=mime==='application/pdf'?'pdf':['image/png','image/jpeg','image/gif','image/webp','image/avif','image/bmp'].includes(mime)?'image':'other'
+    objectUrl=URL.createObjectURL(new Blob([data],{type:kind==='other'?'application/octet-stream':mime}))
+    setFile({url:objectUrl,kind})
+   }catch{if(!cancelled)setError('Impossible de charger ce document. Vérifiez votre connexion et reconnectez-vous si votre session a expiré.')}
+  }
+  void load()
+  return()=>{cancelled=true;if(objectUrl)URL.revokeObjectURL(objectUrl)}
+ },[doc.storagePath,doc.fichierNom])
+ return <dialog ref={dialog} aria-labelledby="document-preview-title" onCancel={onClose} style={{width:'min(1100px,94vw)',maxWidth:'94vw',height:'90vh',maxHeight:'90vh',padding:20,border:'1px solid #cbd5e1',borderRadius:16,background: 'var(--bg, #fff)',color:'var(--text, #172033)'}}>
+  <div style={{display:'flex',flexDirection:'column',height:'100%',gap:16}}>
+   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+    <h2 id="document-preview-title" style={{margin:0,overflowWrap:'anywhere'}}>{doc.titre}</h2>
+    <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+     {file&&<a className="btn secondary" href={file.url} download={doc.fichierNom||doc.storagePath?.split('/').pop()||doc.titre}>Télécharger</a>}
+     <button className="btn" onClick={onClose} autoFocus>Fermer</button>
+    </div>
+   </div>
+   {!file&&!error&&<p role="status">Chargement de l’aperçu…</p>}
+   {error&&<p role="alert">{error}</p>}
+   {file?.kind==='pdf'&&<object data={file.url} type="application/pdf" aria-label={doc.titre} style={{width:'100%',flex:1,minHeight:0}}><p>Votre navigateur ne peut pas afficher ce PDF. Utilisez le bouton Télécharger.</p></object>}
+   {file?.kind==='image'&&!renderError&&<img src={file.url} alt={doc.titre} onError={()=>setRenderError(true)} style={{width:'100%',flex:1,minHeight:0,objectFit:'contain'}}/>}
+   {(file?.kind==='other'||renderError)&&<p>Ce format ne dispose pas encore d’un aperçu intégré. Utilisez Télécharger pour l’ouvrir avec votre application habituelle. Pour une lecture directement ici, ajoutez une version PDF.</p>}
+  </div>
+ </dialog>
+}
