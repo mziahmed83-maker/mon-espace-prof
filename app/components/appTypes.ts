@@ -7,6 +7,8 @@ export type Preferences={
   sousTitre:string
   citation:string
   accent:string
+  titleColor:string
+  subtitleColor:string
   theme:'clair'|'sombre'
 }
 
@@ -20,6 +22,8 @@ export const defaultPreferences:Preferences={
   sousTitre:'Gestion pédagogique personnelle',
   citation:'Transmettre, c’est semer des possibles.',
   accent:'#1478ff',
+  titleColor:'#102a56',
+  subtitleColor:'#64748b',
   theme:'clair'
 }
 
