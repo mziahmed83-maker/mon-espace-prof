@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect,useMemo,useRef,useState,type CSSProperties,type ReactNode } from 'react'
-import {BarChart3,Bell,BookOpen,CalendarDays,ChevronRight,ClipboardList,ExternalLink,FileText,FolderOpen,GraduationCap,Home,Library,Link as LinkIcon,LogOut,Pencil,Plus,Search,Settings,Sun,Trash2,Upload,Users} from 'lucide-react'
+import {BarChart3,Bell,BookOpen,CalendarDays,ChevronRight,ClipboardCheck,ClipboardList,ExternalLink,FileText,FolderOpen,GraduationCap,Home,Library,Link as LinkIcon,LogOut,Pencil,Plus,Search,Settings,Sun,Trash2,Upload,Users} from 'lucide-react'
 import type {User} from '@supabase/supabase-js'
 import type {Classe,Devoir,DocumentPedago,Eleve,Note} from '@/lib/types'
 import {supabase} from '@/lib/supabase/client'
 import CrudModal from './CrudModal'
 import SettingsPanel from './SettingsPanel'
+import CorrectionCopies from './CorrectionCopies'
 import type {BuiltinKey,CustomRubrique,Preferences,RubriqueNoms} from './appTypes'
 import {defaultPreferences,defaultRubriqueNoms} from './appTypes'
 
@@ -30,7 +31,7 @@ export default function TeacherApp(){
 
  const moyenne=useMemo(()=>notes.length?notes.reduce((s,n)=>s+(n.valeur/n.sur*20),0)/notes.length:0,[notes])
  const classeNom=(id:string)=>classes.find(c=>c.id===id)?.nom??'—',eleveNom=(id:string)=>{const e=eleves.find(x=>x.id===id);return e?`${e.prenom} ${e.nom}`:'—'}
- const builtin:[BuiltinKey,React.ComponentType<{size?:number}>][]=[['dashboard',Home],['classes',GraduationCap],['eleves',Users],['notes',ClipboardList],['devoirs',BookOpen],['documents',FolderOpen],['bibliotheque',Library],['calendrier',CalendarDays],['statistiques',BarChart3],['parametres',Settings]]
+ const builtin:[BuiltinKey,React.ComponentType<{size?:number}>][]=[['dashboard',Home],['classes',GraduationCap],['eleves',Users],['notes',ClipboardList],['devoirs',BookOpen],['corrections',ClipboardCheck],['documents',FolderOpen],['bibliotheque',Library],['calendrier',CalendarDays],['statistiques',BarChart3],['parametres',Settings]]
  const customActive=tab.startsWith('custom:')?customRubriques.find(r=>`custom:${r.id}`===tab):undefined
  const pageTitle=customActive?.titre??rubriqueNoms[tab as BuiltinKey]??'Accueil'
  const filteredDocs=docs.filter(d=>`${d.titre} ${d.categorie} ${d.niveau}`.toLowerCase().includes(search.toLowerCase()))
@@ -59,6 +60,7 @@ export default function TeacherApp(){
    {tab==='eleves'&&<Section title={rubriqueNoms.eleves} add={()=>setModal('eleve')}><table className="table"><thead><tr><th>Nom</th><th>Prénom</th><th>Classe</th><th>Actions</th></tr></thead><tbody>{eleves.map(e=><tr key={e.id}><td>{e.nom}</td><td>{e.prenom}</td><td>{classeNom(e.classeId)}</td><td>{actions(()=>editEleve(e),()=>deleteEleve(e))}</td></tr>)}</tbody></table></Section>}
    {tab==='notes'&&<Section title={rubriqueNoms.notes} add={()=>setModal('note')}><table className="table"><thead><tr><th>Élève</th><th>Évaluation</th><th>Note</th><th>Coef.</th><th>Actions</th></tr></thead><tbody>{notes.map(n=><tr key={n.id}><td>{eleveNom(n.eleveId)}</td><td>{n.libelle}</td><td>{n.valeur}/{n.sur}</td><td>{n.coefficient}</td><td>{actions(()=>editNote(n),()=>confirm('Supprimer cette note ?')&&setNotes(notes.filter(x=>x.id!==n.id)))}</td></tr>)}</tbody></table></Section>}
    {tab==='devoirs'&&<Section title={rubriqueNoms.devoirs} add={()=>setModal('devoir')}><table className="table"><thead><tr><th>Titre</th><th>Classe</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead><tbody>{devoirs.map(d=><tr key={d.id}><td>{d.titre}</td><td>{classeNom(d.classeId)}</td><td>{d.date}</td><td><span className={d.statut==='À faire'?'badge warn':'badge'}>{d.statut}</span></td><td>{actions(()=>editDevoir(d),()=>confirm('Supprimer ce devoir ?')&&setDevoirs(devoirs.filter(x=>x.id!==d.id)))}</td></tr>)}</tbody></table></Section>}
+   {tab==='corrections'&&<CorrectionCopies classes={classes} eleves={eleves} devoirs={devoirs} onAddNote={note=>setNotes([...notes,note])}/>} 
    {tab==='documents'&&<section className="panel">{!user&&<div className="auth-box"><strong>Connexion sécurisée</strong><p>Pour téléverser des fichiers privés.</p><div className="auth-row"><input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="votre@email.com"/><button className="btn" onClick={sendMagicLink}>Recevoir le lien</button></div>{authMessage&&<div className="auth-message">{authMessage}</div>}</div>}<div className="toolbar"><button className="btn" onClick={()=>setModal('document')}><Upload size={16}/> Ajouter un document</button></div><DocTable docs={filteredDocs} open={openDocument} edit={editDocument} del={deleteDocument}/></section>}
    {tab==='bibliotheque'&&<section className="panel"><div className="panel-heading"><h2>{rubriqueNoms.bibliotheque}</h2><button className="btn" onClick={()=>setModal('document')}><Plus size={16}/> Ajouter</button></div><div className="library-grid">{filteredDocs.map((d,i)=><div className="library-card" key={d.id}><button className="library-open" onClick={()=>openDocument(d)}><div className={`item-icon lib-${i%3}`}><BookOpen size={22}/></div><strong>{d.titre}</strong><span>{d.categorie} · {d.niveau}</span></button>{actions(()=>editDocument(d),()=>void deleteDocument(d))}</div>)}</div></section>}
    {tab==='calendrier'&&<Coming title={rubriqueNoms.calendrier} icon={<CalendarDays size={34}/>}/>} {tab==='statistiques'&&<Coming title={rubriqueNoms.statistiques} icon={<BarChart3 size={34}/>}/>} {tab==='parametres'&&<SettingsPanel preferences={preferences} onPreferences={setPreferences} rubriqueNoms={rubriqueNoms} onRubriqueNoms={setRubriqueNoms} customRubriques={customRubriques} onCustomRubriques={setCustomRubriques}/>} {customActive&&<section className="panel"><h2>{customActive.titre}</h2><p className="helper">{customActive.sousTitre}</p><div className="empty">Rubrique personnalisée prête à être utilisée.</div></section>}

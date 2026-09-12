@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import './corrections.css'
 
 export const metadata: Metadata = {
   title: 'Mon Espace Prof',

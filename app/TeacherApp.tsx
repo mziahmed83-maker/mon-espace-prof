@@ -5,10 +5,10 @@ import {BarChart3,Bell,BookOpen,CalendarDays,CheckCircle2,ChevronRight,Clipboard
 import type {User} from '@supabase/supabase-js'
 import type {Classe,Devoir,DocumentPedago,Eleve,Note} from '@/lib/types'
 import {supabase} from '@/lib/supabase/client'
-import CrudModal from './CrudModal'
-import SettingsPanel from './SettingsPanel'
-import type {BuiltinKey,CustomRubrique,Preferences,RubriqueNoms} from './appTypes'
-import {defaultPreferences,defaultRubriqueNoms} from './appTypes'
+import CrudModal from './components/CrudModal'
+import SettingsPanel from './components/SettingsPanel'
+import type {BuiltinKey,CustomRubrique,Preferences,RubriqueNoms} from './components/appTypes'
+import {defaultPreferences,defaultRubriqueNoms} from './components/appTypes'
 import '../dashboard.css'
 
 const initialClasses:Classe[]=[{id:'c1',nom:'TC 1',niveau:'Tronc commun'}]
