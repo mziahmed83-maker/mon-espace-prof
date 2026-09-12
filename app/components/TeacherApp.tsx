@@ -27,6 +27,7 @@ export default function TeacherApp(){
  const [modal,setModal]=useState<null|'classe'|'eleve'|'note'|'devoir'|'document'>(null),[user,setUser]=useState<User|null>(null),[email,setEmail]=useState(''),[authMessage,setAuthMessage]=useState(''),[search,setSearch]=useState('')
 
  useEffect(()=>{supabase.auth.getUser().then(({data})=>setUser(data.user??null));const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setUser(s?.user??null));return()=>subscription.unsubscribe()},[])
+ useEffect(()=>{if(!rubriqueNoms.corrections)setRubriqueNoms(current=>({...defaultRubriqueNoms,...current}))},[rubriqueNoms.corrections,setRubriqueNoms])
  useEffect(()=>{try{if(localStorage.getItem('ep-exemples-nettoyes-v1'))return;const ids=new Set(['e1','e2','e3']);setClasses(p=>p.filter(c=>!(c.id==='c2'||c.nom.trim().toLowerCase()==='3e a')));setEleves(p=>p.filter(e=>!ids.has(e.id)));setNotes(p=>p.filter(n=>!ids.has(n.eleveId)));setDevoirs(p=>p.filter(d=>d.classeId!=='c2'));localStorage.setItem('ep-exemples-nettoyes-v1','1')}catch{}},[setClasses,setEleves,setNotes,setDevoirs])
 
  const moyenne=useMemo(()=>notes.length?notes.reduce((s,n)=>s+(n.valeur/n.sur*20),0)/notes.length:0,[notes])
