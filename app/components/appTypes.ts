@@ -1,4 +1,4 @@
-export type BuiltinKey='dashboard'|'classes'|'eleves'|'notes'|'devoirs'|'corrections'|'documents'|'bibliotheque'|'calendrier'|'statistiques'|'parametres'
+export type BuiltinKey='dashboard'|'assistant'|'classes'|'eleves'|'notes'|'devoirs'|'corrections'|'documents'|'bibliotheque'|'calendrier'|'statistiques'|'parametres'
 
 export type Preferences={
   titreApp:string
@@ -28,7 +28,7 @@ export const defaultPreferences:Preferences={
 }
 
 export const defaultRubriqueNoms:RubriqueNoms={
-  dashboard:'Accueil',classes:'Classes',eleves:'Élèves',notes:'Notes',devoirs:'Devoirs',
+  dashboard:'Accueil',assistant:'Assistant IA',classes:'Classes',eleves:'Élèves',notes:'Notes',devoirs:'Devoirs',
   corrections:'Correction des copies',documents:'Mes documents',bibliotheque:'Bibliothèque',calendrier:'Mon calendrier',
   statistiques:'Statistiques',parametres:'Paramètres'
 }
