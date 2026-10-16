@@ -61,15 +61,14 @@ export default function FrenchWorkshop(){
   addDoc('Exercice','Exercices — '+exercise.theme,'<p class="meta"><b>Niveau :</b> '+exercise.niveau+' · <b>Difficulté :</b> '+exercise.difficulty+'</p><h2>'+exercise.theme+'</h2><p>Lis attentivement chaque consigne. Réponds avec des phrases complètes lorsque cela est demandé.</p>'+q+'<hr><h2>Corrigé</h2><p>À compléter et vérifier par le professeur avant impression.</p>',exercise.niveau)
  }
  function questions(version:string){
-  const values=Array.from({length:Number(control.questions)},(_,i)=>[4,5,5,6][i]||0)
-  const total=values.reduce((a,b)=>a+b,0)
+  const count=Math.max(2,Math.min(6,Number(control.questions)))
+  const available=20-(control.writing?6:0)
+  const each=Math.floor(available/count)
+  const values=Array.from({length:count},(_,i)=>i===count-1?available-each*(count-1):each)
+  const total=values.reduce((a,b)=>a+b,0)+(control.writing?6:0)
   return '<p class="meta"><b>Niveau :</b> '+control.niveau+' · <b>Compétence :</b> '+control.competence+' · <b>Version :</b> '+version+' · <b>Barème :</b> '+total+'/20</p><p><b>Nom et prénom :</b> _________________________________ &nbsp; <b>Classe :</b> __________</p><h2>Consignes</h2><p>Lis toutes les questions. Soigne la présentation et justifie lorsque cela est demandé.</p>'+values.map((p,i)=>'<h2>Question '+(i+1)+' <span class="points">'+p+' pts</span></h2><p>'+(['Repère un élément utile dans le support fourni par le professeur.','Transforme ou reformule en respectant la notion étudiée.','Explique ton choix avec une phrase complète.','Réemploie la notion dans une situation nouvelle.'][i]||'Réponds à la consigne.')+'</p><div class="answer"></div><div class="answer"></div>').join('')+(control.writing?'<h2>Production écrite <span class="points">6 pts</span></h2><p>Rédige un court paragraphe organisé en respectant le sujet donné par le professeur.</p><div class="answer"></div><div class="answer"></div><div class="answer"></div>':'')+'<hr><h2>Corrigé et barème</h2><p>Corrigé à compléter et valider par le professeur. Total vérifié : <b>'+total+'/20</b>.</p>'
  }
  function createControls(){
-  const base=Number(control.questions)===4 ? [4,5,5,6] : Array.from({length:Number(control.questions)},()=>Math.floor(20/Number(control.questions)))
-  const correction=control.writing?6:0
-  const normalized=base.map((_,i)=>i===base.length-1?20-correction-base.slice(0,-1).reduce((x,y)=>x+y,0):base[i])
-  void normalized
   addDoc('Contrôle','Contrôle A — '+control.competence,questions('A'),control.niveau)
   setTimeout(()=>addDoc('Contrôle','Contrôle B — '+control.competence,questions('B'),control.niveau),0)
  }
