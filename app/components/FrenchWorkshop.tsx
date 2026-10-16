@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 
 type Classe = { id:string; nom:string; niveau:string }
 type Eleve = { id:string; nom:string; classeId:string }
@@ -90,9 +90,9 @@ export default function FrenchWorkshop(){
   </main></div></div>
 }
 function Metric({label,value}:{label:string,value:string|number}){return <div className="metric"><span>{label}</span><b>{value}</b></div>}
-function Panel({title,children}:{title:string,children:React.ReactNode}){return <section className="panel"><h2>{title}</h2>{children}</section>}
+function Panel({title,children}:{title:string,children:ReactNode}){return <section className="panel"><h2>{title}</h2>{children}</section>}
 function Empty({text}:{text:string}){return <p className="empty">{text}</p>}
-function FormRow({label,children}:{label:string,children:React.ReactNode}){return <label className="field"><span>{label}</span>{children}</label>}
+function FormRow({label,children}:{label:string,children:ReactNode}){return <label className="field"><span>{label}</span>{children}</label>}
 function Classes({classes,setClasses,eleves,setEleves}:{classes:Classe[],setClasses:(x:Classe[])=>void,eleves:Eleve[],setEleves:(x:Eleve[])=>void}){
  const [name,setName]=useState('');const [level,setLevel]=useState('Tronc commun');const [student,setStudent]=useState('');const [classId,setClassId]=useState('')
  return <><Panel title="Mes classes"><div className="inline"><input placeholder="Nom de la classe" value={name} onChange={e=>setName(e.target.value)}/><select value={level} onChange={e=>setLevel(e.target.value)}><option>Collège</option><option>Tronc commun</option><option>1re année baccalauréat</option></select><button className="primary" onClick={()=>{if(name.trim()){setClasses([...classes,{id:uid(),nom:name,niveau:level}]);setName('')}}}>Ajouter</button></div>{classes.map(c=><div className="row" key={c.id}><b>{c.nom}</b><span>{c.niveau}</span><small>{eleves.filter(e=>e.classeId===c.id).length} élèves</small><button onClick={()=>{if(confirm('Supprimer cette classe et ses élèves ?')){setClasses(classes.filter(x=>x.id!==c.id));setEleves(eleves.filter(x=>x.classeId!==c.id))}}}>Supprimer</button></div>)}</Panel><Panel title="Élèves"><div className="inline"><input placeholder="Nom et prénom" value={student} onChange={e=>setStudent(e.target.value)}/><select value={classId} onChange={e=>setClassId(e.target.value)}><option value="">Choisir une classe</option>{classes.map(c=><option value={c.id} key={c.id}>{c.nom}</option>)}</select><button className="primary" onClick={()=>{if(student.trim()&&classId){setEleves([...eleves,{id:uid(),nom:student,classeId}]);setStudent('')}}}>Ajouter</button></div>{eleves.map(e=><div className="row" key={e.id}><b>{e.nom}</b><span>{classes.find(c=>c.id===e.classeId)?.nom||'—'}</span><button onClick={()=>setEleves(eleves.filter(x=>x.id!==e.id))}>Supprimer</button></div>)}</Panel></>
