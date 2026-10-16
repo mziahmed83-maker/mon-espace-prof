@@ -10,3 +10,5 @@
 @media print{.app-header,.sidebar,.top,.cc-actions,.cc-toast,.cc-copy,.cc-chips,.cc-note-btn,.cc-add{display:none!important}.shell{display:block}.main{padding:0}.cc-grid{display:block}.cc-correction{box-shadow:none}.cc-feedback{grid-template-columns:1fr 1fr;box-shadow:none;margin-top:12px}.cc-identity{box-shadow:none}.cc-page .panel{border-color:#ddd}.cc-page textarea,.cc-page input,.cc-page select{border:0!important}}
 
 .cc-page button:disabled{opacity:.5;cursor:not-allowed}.cc-label{margin-bottom:12px}.cc-no-print{line-height:1.5}@media print{body:has(.cc-page) .cc-no-print,body:has(.cc-page) button{display:none!important}.cc-feedback textarea{min-height:220px}.cc-identity{grid-template-columns:repeat(2,1fr)}.cc-page{color:black;background:white}}
+
+.cc-template{margin:14px 0;padding:13px;border:1px solid #d9e7df;border-radius:12px;background:#f6fbf7}.cc-template label{display:grid;gap:6px;font-weight:750;color:#234}.cc-remediation{margin:14px 0;padding:13px;border-left:4px solid #1f7a5a;border-radius:8px;background:#eef8f2;color:#164c3c}.cc-remediation strong{display:block;margin-bottom:5px}.cc-remediation p{margin:5px 0;font-size:13px;line-height:1.45}

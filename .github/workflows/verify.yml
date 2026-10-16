@@ -2,7 +2,7 @@ name: Vérification de l’application
 
 on:
   push:
-    branches: [feat/atelier-francais-v1]
+    branches: [feat/**]
   pull_request:
 
 jobs:

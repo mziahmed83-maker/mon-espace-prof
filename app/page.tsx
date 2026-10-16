@@ -1,5 +1,5 @@
-import FrenchWorkshop from './components/FrenchWorkshop'
+import TeacherApp from './components/TeacherApp'
 
 export default function Page(){
-  return <FrenchWorkshop />
+  return <TeacherApp />
 }
