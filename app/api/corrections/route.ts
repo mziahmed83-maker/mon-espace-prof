@@ -1,21 +1,16 @@
-import {createClient} from '@supabase/supabase-js'
 export const runtime='nodejs'
 export const maxDuration=60
 export const dynamic='force-dynamic'
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}})
-const configured=()=>!!(process.env.OPENAI_API_KEY&&process.env.CORRECTION_OWNER_EMAIL&&process.env.NEXT_PUBLIC_SUPABASE_URL&&process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
+const configured=()=>!!(process.env.OPENAI_API_KEY&&process.env.CORRECTION_ACCESS_CODE)
 export async function GET(){return json({ready:configured()})}
 const str={type:'string'}
 const schema={type:'object',additionalProperties:false,required:['transcription','corrected','warnings','appreciation','errors','scores'],properties:{transcription:str,corrected:str,warnings:{type:'array',items:str},appreciation:str,errors:{type:'array',items:{type:'object',additionalProperties:false,required:['original','correction','explanation'],properties:{original:str,correction:str,explanation:str}}},scores:{type:'array',items:{type:'object',additionalProperties:false,required:['id','score','reason'],properties:{id:str,score:{type:'number'},reason:str}}}}}
 export async function POST(request:Request){
  if(!configured())return json({error:'La correction IA attend son activation. Votre copie n’a pas été envoyée.'},503)
- const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/)?.[1]
- if(!token)return json({error:'Connectez-vous à votre espace pour corriger une copie.'},401)
+ const accessCode=request.headers.get('x-correction-code')
+ if(!accessCode||accessCode!==process.env.CORRECTION_ACCESS_CODE)return json({error:'Saisissez le code d’accès de correction pour lancer la lecture.'},401)
  try{
-  const auth=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{auth:{persistSession:false,autoRefreshToken:false}})
-  const {data,error}=await auth.auth.getUser(token)
-  if(error||!data.user)return json({error:'Votre connexion a expiré. Reconnectez-vous.'},401)
-  if(data.user.email?.toLowerCase()!==process.env.CORRECTION_OWNER_EMAIL?.trim().toLowerCase())return json({error:'Cette fonction est réservée au propriétaire de cet espace. Connectez-vous avec l’adresse autorisée.'},403)
   if(Number(request.headers.get('content-length'))>4000000)return json({error:'Copie trop volumineuse : maximum 3 Mo.'},413)
   const raw=await request.text()
   if(Buffer.byteLength(raw)>4000000)return json({error:'Copie trop volumineuse : maximum 3 Mo.'},413)
@@ -34,6 +29,7 @@ export async function POST(request:Request){
   if(!response.ok){
    const detail=await response.json().catch(()=>null)
    const reason=typeof detail?.error?.message==='string'?detail.error.message:''
+   console.error('Échec OpenAI correction',JSON.stringify({status:response.status,type:detail?.error?.type,code:detail?.error?.code,message:reason}))
    if(response.status===429)return json({error:'Crédit ou limite du service IA atteint. Réessayez plus tard ou vérifiez le crédit.'},502)
    if(response.status===401||response.status===403)return json({error:'Le service de lecture IA doit être reconfiguré par le propriétaire de l’espace.'},502)
    if(response.status===400&&/schema|json_schema|unsupported/i.test(reason))return json({error:'Le service de lecture a refusé son format de réponse. Réessayez maintenant : le correctif vient d’être appliqué.'},502)
